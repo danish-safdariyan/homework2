@@ -1,6 +1,5 @@
 # Homework 2 — AI Agent System with RAG and Tools
 
-Single-folder submission for GitHub (`homework2`). Course originals may live under `08_function_calling/` and `07_rag/data/` in the full class repo; **this repo** keeps the runnable copy at the paths below.
 
 ## Contents
 
