@@ -1,0 +1,12 @@
+1) Supervised Learning: Learning from labeled examples (classification and regression) by minimizing loss on training data.
+2) Unsupervised Learning: Finding patterns in unlabeled data using methods like clustering and dimensionality reduction.
+3) Overfitting: When a model learns noise from training data and performs poorly on new (test/validation) data.
+4) Regularization: Techniques like L2 (weight decay), L1, and dropout that improve generalization by discouraging overly complex models.
+5) Cross-Validation: Repeating training/testing across multiple folds to estimate performance more robustly.
+6) Embeddings: Vector representations of text that capture semantic similarity so that related items are close in vector space.
+7) Vector Database: Stores embeddings and supports similarity search (often returning top-k nearest matches for a query).
+8) RAG Chunking: Splits documents into smaller chunks so retrieval can find the most relevant passages for a question.
+9) Retrieval: The step that finds relevant chunks (based on keyword match or embedding similarity) to ground the LLM.
+10) Prompt Engineering: Writing system/user instructions so the LLM uses retrieved context and formats responses clearly.
+11) Evaluation Metrics: Task-specific measures such as accuracy, precision/recall, F1, or RMSE to compare model performance.
+12) Answer Grounding: RAG should answer using provided evidence; if evidence is missing, the model should say so.
