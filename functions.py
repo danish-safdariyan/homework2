@@ -9,6 +9,7 @@
 
 ## 0.1 Load Packages #################################
 
+import os
 import requests  # for HTTP requests
 import json      # for working with JSON
 import pandas as pd  # for data manipulation
@@ -22,8 +23,8 @@ import time      # for simple polling/retry
 
 # Default model and Ollama connection
 DEFAULT_MODEL = "smollm2:1.7b"
-PORT = 11434
-OLLAMA_HOST = f"http://localhost:{PORT}"
+PORT = int(os.environ.get("OLLAMA_PORT", "11434"))
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", f"http://localhost:{PORT}").rstrip("/")
 CHAT_URL = f"{OLLAMA_HOST}/api/chat"
 REQUEST_TIMEOUT = 300  # seconds; avoid hanging indefinitely on network/model issues
 OLLAMA_TAGS_URL = f"{OLLAMA_HOST}/api/tags"
@@ -45,8 +46,9 @@ def ensure_ollama_available(max_wait_seconds: int = 15, poll_interval_seconds: f
         time.sleep(poll_interval_seconds)
 
     raise RuntimeError(
-        "Ollama is not reachable at http://localhost:11434. "
-        "Start Ollama (e.g. `ollama serve`) and ensure the model is pulled.\n"
+        f"Ollama is not reachable at {OLLAMA_HOST}. "
+        "Start Ollama (e.g. `ollama serve`) and ensure the model is pulled. "
+        "Override with env OLLAMA_HOST (e.g. http://127.0.0.1:11434) or OLLAMA_PORT.\n"
         f"Last error: {last_err}"
     )
 

@@ -1,6 +1,6 @@
-# Homework 2 — submission bundle (Git-friendly)
+# Homework 2 — AI Agent System with RAG and Tools
 
-This folder holds everything needed to **run** and **link** Homework 2 (“AI Agent System with RAG and Tools”) in one place for your instructor or your `.docx` GitHub links.
+Single-folder submission for GitHub (`homework2`). Course originals may live under `08_function_calling/` and `07_rag/data/` in the full class repo; **this repo** keeps the runnable copy at the paths below.
 
 ## Contents
 
@@ -11,38 +11,91 @@ This folder holds everything needed to **run** and **link** Homework 2 (“AI Ag
 | `data/lab_custom_docs.txt` | RAG corpus (line-based retrieval) |
 | `requirements.txt` | Python dependencies |
 
-## Setup
+---
 
-1. Install Python packages: `pip install -r requirements.txt`
-2. Install [Ollama](https://ollama.com) and pull the model: `ollama pull smollm2:1.7b`
-3. Start Ollama (usually listens on `http://127.0.0.1:11434`)
+## System architecture
 
-## Run
+The system is implemented in `HOMEWORK2_agent_system.py` and runs as a **linear three-agent pipeline**:
 
-From **this** directory:
+### Retrieval (programmatic, not an LLM)
 
-```bash
-cd homework2_submission
-python3 HOMEWORK2_agent_system.py
-```
+The script calls `search_text_lines()` on a text file and builds a JSON retrieval payload (`query`, `document`, `matching_content`, `num_lines`). This is the RAG retrieval step.
 
-Use the printed sections for **screenshots** (RAG JSON + Agent 1, Agent 2 table, Agent 3 merge).
+### Agent 1 — RAG / grounded explainer
 
-## GitHub links for your `.docx`
+- **Role:** Concise ML tutor; explain using only retrieved evidence.
+- **Input:** The retrieval JSON plus the focus topic (`RAG_QUERY`).
+- **Output:** A brief explanation grounded in `matching_content`.
 
-After you push, use URLs like (replace `USER` / `REPO` / branch):
+### Agent 2 — Tool / metrics fetcher
 
-- `https://github.com/USER/REPO/blob/main/homework2_submission/HOMEWORK2_agent_system.py`
-- `https://github.com/USER/REPO/blob/main/homework2_submission/functions.py`
-- `https://github.com/USER/REPO/blob/main/homework2_submission/data/lab_custom_docs.txt`
+- **Role:** Data assistant that must call `get_department_metrics`.
+- **Mechanism:** `agent_run(..., output="tools", tools=[tool_get_department_metrics])`. Python executes the tool and stores the result on the tool call; the script converts the returned `pandas.DataFrame` to a markdown table via `df_as_text()`.
 
-The course repo also keeps copies under `08_function_calling/` and `07_rag/data/`; this folder is the **single bundle** for submission.
+### Agent 3 — Integrator / briefing writer
 
-## Tool reference (documentation)
+- **Role:** Merge documentation-grounded text with tabular metrics.
+- **Input:** Agent 1’s text and Agent 2’s markdown table.
+- **Output:** Markdown with sections **Summary**, **Linking concepts to the metrics**, and **Recommendation**.
+
+**Workflow summary:** Retrieve → explain (RAG) → tool-call metrics → merge into one report.
+
+---
+
+## RAG data source
+
+- **File (this repo):** `data/lab_custom_docs.txt` (resolved next to `HOMEWORK2_agent_system.py` via `RAG_DOCUMENT`).
+- **Content:** Plain text; each line is a separate entry (ML/RAG-related notes).
+- **Search function:** `search_text_lines(query, document_path)`
+  - Reads the file as lines.
+  - Keeps every line where `query.lower()` appears as a substring of the line (case-insensitive).
+  - Returns a dictionary: `query`, `document` (basename), `matching_content` (joined matching lines), `num_lines`.
+  - If the path is missing: empty content and an `error` field.
+- **LLM connection:** The dict is `json.dumps(..., indent=2)` and embedded in the user/task content for Agent 1.
+
+---
+
+## Tool functions
 
 | Tool name | Purpose | Parameters | Returns |
 |-----------|---------|------------|---------|
-| `get_department_metrics` | Quarterly metrics for a department | `department` (string) | `pandas.DataFrame` |
+| `get_department_metrics` | Quarterly rows for one department from an in-memory metrics table | `department` (string, required) — e.g. `"Engineering"`, `"Sales"`, `"Operations"` (matching is case-insensitive) | `pandas.DataFrame` with columns: `department`, `quarter`, `headcount`, `budget_k`, `projects_shipped`. Empty DataFrame if the name is blank or unknown. |
 
-RAG: `search_text_lines()` scans `data/lab_custom_docs.txt` line-by-line (case-insensitive substring) and builds JSON with `matching_content` and `num_lines`.
-# homework2
+The LLM sees this tool through `tool_get_department_metrics` (Ollama-style metadata: `type`, `function.name`, `function.description`, `function.parameters`).
+
+---
+
+## Technical details
+
+- **Language / entry point:** Python 3; run `HOMEWORK2_agent_system.py`.
+- **LLM runtime:** Ollama (local).
+- **Default model:** `smollm2:1.7b` (`MODEL` in the script).
+- **HTTP API:** `functions.py` POSTs to `{OLLAMA_HOST}/api/chat` (default `http://localhost:11434`). Override with environment variable **`OLLAMA_HOST`** (full base URL, no trailing slash) or **`OLLAMA_PORT`** (used only when `OLLAMA_HOST` is unset).
+- **API keys:** None (no cloud LLM). RAG file is local; metrics are in-memory (`_METRICS_ROWS` / `METRICS_DF`).
+- **Key packages:** `pandas`, `requests`, `tabulate` (for `DataFrame.to_markdown`).
+- **Important project files (this repo):**
+  - `HOMEWORK2_agent_system.py` — main pipeline
+  - `functions.py` — `agent_run`, `agent`, `df_as_text`
+  - `data/lab_custom_docs.txt` — RAG corpus
+- **Reliability:** If the model does not return a tool call, the script falls back to `get_department_metrics(...)` and may print: `Note: no tool output from model; calling get_department_metrics directly.`
+
+---
+
+## Setup
+
+1. Install Python packages: `pip install -r requirements.txt` (use a venv if your course recommends it).
+2. Install and start [Ollama](https://ollama.com) and pull the model: `ollama pull smollm2:1.7b`
+3. Ensure Ollama responds at your configured host (default `http://127.0.0.1:11434`).
+
+---
+
+## Run
+
+From the directory that contains `HOMEWORK2_agent_system.py` (clone of this repo or this folder):
+
+```bash
+python3 HOMEWORK2_agent_system.py
+```
+
+**Expected output:** Labeled terminal sections — RAG retrieval JSON, Agent 1 answer, Agent 2 markdown table, Agent 3 merged briefing — suitable for screenshots.
+
